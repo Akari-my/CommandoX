@@ -1,0 +1,7 @@
+name: CommandoX
+version: 0.1.0
+antigen: CommandoX
+api: [5.0.0]
+php: [8.1, 8.2, 8.3]
+author: "Mellooh"
+description: "Command framework for PocketMine-MP"
