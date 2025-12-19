@@ -1,5 +1,5 @@
 
-<img width="2048" height="272" alt="minecraft_title" src="https://github.com/user-attachments/assets/4ba045fc-cd13-4574-a7cf-34aeb0c92a93" />
+<img width="2048" height="272" alt="minecraft_title" src="https://github.com/user-attachments/assets/a10208b1-dbfd-4d31-89a7-7bc5c470746a" />
 
 CommandoX is a command framework for **PocketMine‑MP** that makes it easy to build commands and subcommands with **typed arguments**, **permission checks**, and **automatic usage/error handling**.
 
