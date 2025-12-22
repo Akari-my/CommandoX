@@ -98,7 +98,8 @@ abstract class BaseCommand extends Command {
      * Called by PocketMine when the command is executed.
      */
     public function execute(CommandSender $sender, string $label, array $args): bool {
-        // Check root command permission
+
+        // Root permission
         if (!$this->testPermissionSilent($sender)) {
             $msg = $this->permissionMessageCustom
                 ?? $this->getPermissionMessage()
@@ -107,44 +108,46 @@ abstract class BaseCommand extends Command {
             return true;
         }
 
-        // If first argument looks like a subcommand
-        if (isset($args[0])) {
-            $subName = strtolower($args[0]);
-            $sub = $this->subCommandsByAlias[$subName] ?? null;
+        $sub = null;
+        $consumed = 0;
 
-            if ($sub !== null) {
-                array_shift($args); // remove subcommand name from args
-
-                if (!$sub->checkPermission($sender)) {
-                    $sender->sendMessage($sub->getNoPermissionMessage());
-                    return true;
-                }
-
-                try {
-                    $parsed = $this->parseArgumentsFor($sub, $args, $sender);
-                } catch (ArgumentParseException $e) {
-                    $this->sendUsageFor($sender, $sub, $e->getMessage());
-                    return true;
-                } catch (CommandException $e) {
-                    $sender->sendMessage("§c" . $e->getMessage());
-                    return true;
-                }
-
-                $context = new CommandContext(
-                    $this->plugin,
-                    $sender,
-                    $label,
-                    $parsed,
-                    $this,
-                    $sub
-                );
-
-                $sub->onRun($context);
-                return true;
-            }
+        // Try to match a subcommand (including multi-word aliases)
+        if (count($args) > 0) {
+            [$sub, $consumed] = $this->findMatchingSubCommand($args);
         }
 
-        // No valid subcommand -> execute root command
+        if ($sub !== null) {
+            $subArgs = array_slice($args, $consumed);
+
+            if (!$sub->checkPermission($sender)) {
+                $sender->sendMessage($sub->getNoPermissionMessage());
+                return true;
+            }
+
+            try {
+                $parsed = $this->parseArgumentsFor($sub, $subArgs, $sender);
+            } catch (ArgumentParseException $e) {
+                $this->sendUsageFor($sender, $sub, $e->getMessage());
+                return true;
+            } catch (CommandException $e) {
+                $sender->sendMessage("§c" . $e->getMessage());
+                return true;
+            }
+
+            $context = new CommandContext(
+                $this->plugin,
+                $sender,
+                $label,
+                $parsed,
+                $this,
+                $sub
+            );
+
+            $sub->onRun($context);
+            return true;
+        }
+
+        // No subcommand matched -> root command
         try {
             $parsed = $this->parseArgumentsFor($this, $args, $sender);
         } catch (ArgumentParseException $e) {
@@ -238,5 +241,34 @@ abstract class BaseCommand extends Command {
             $parts[] = $argument->getUsageSyntax();
         }
         return implode(" ", $parts);
+    }
+
+    /**
+     * Try to match a subcommand against the given args.
+     * Supports:
+     *   - single-word names/aliases (e.g. "groupadd")
+     *   - two-word aliases (e.g. "group add")
+     *
+     * Returns [BaseSubCommand|null, int $consumedArgs]
+     */
+    private function findMatchingSubCommand(array $args): array {
+        if (count($args) === 0) {
+            return [null, 0];
+        }
+
+        $first = strtolower($args[0]);
+
+        if (isset($this->subCommandsByAlias[$first])) {
+            return [$this->subCommandsByAlias[$first], 1];
+        }
+
+        if (count($args) >= 2) {
+            $two = strtolower($args[0] . " " . $args[1]);
+            if (isset($this->subCommandsByAlias[$two])) {
+                return [$this->subCommandsByAlias[$two], 2];
+            }
+        }
+
+        return [null, 0];
     }
 }
